@@ -2803,9 +2803,9 @@
           </button>
         </form>
       </div>
-      <div class="auth-divider">或</div>
+      <div class="auth-divider" id="authDivider">或</div>
       <button class="btn btn-secondary btn-lg" id="loginBtn" type="button" style="width:100%;justify-content:center"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>使用 LINUX DO 登录</button>
-      <p class="auth-footer-note">LINUX DO 账号可直接登录，无需邀请码</p>
+      <p class="auth-footer-note" id="authFooterNote">LINUX DO 账号可直接登录，无需邀请码</p>
     </div>
   </div>
 
@@ -3788,6 +3788,53 @@
       btn.disabled = !!busy;
     }
 
+    // Filled from /auth/config so the gate reflects what this deployment
+    // actually enables. Null until the fetch in showLoginGate resolves.
+    let authConfig = null;
+
+    function inviteRequiredForLocal() {
+      return !authConfig || authConfig.inviteRequiredForLocal !== false;
+    }
+
+    function loginTabSubText() {
+      const base = "登录后添加机器人、批准好友、分配角色。";
+      const invite = inviteRequiredForLocal();
+      const oauth = !authConfig || authConfig.oauthEnabled !== false;
+      if (invite && oauth) return base + "本地注册需邀请码；LINUX DO 可直接登录。";
+      if (invite) return base + "本地注册需邀请码。";
+      if (oauth) return base + "LINUX DO 可直接登录。";
+      return base;
+    }
+
+    function applyAuthConfig(cfg) {
+      authConfig = cfg || null;
+      if (!cfg) return;
+      if (cfg.oauthEnabled === false) {
+        for (const id of ["authDivider", "loginBtn", "authFooterNote"]) {
+          const el = $(id);
+          if (el) el.style.display = "none";
+        }
+      }
+      if (cfg.localAuthEnabled === false) {
+        setAuthTab("login");
+        if ($("authTabs")) $("authTabs").style.display = "none";
+        if ($("authLoginPanel")) $("authLoginPanel").style.display = "none";
+        if ($("authRegisterPanel")) $("authRegisterPanel").style.display = "none";
+        setInviteBanner(null);
+      } else if (!inviteRequiredForLocal() && $("authTabRegister")) {
+        $("authTabRegister").textContent = "注册";
+      }
+      // Refresh copy for whichever tab is showing: an invite URL may have
+      // selected the register tab before this fetch resolved.
+      if (
+        $("authTabLogin") &&
+        $("authTabLogin").getAttribute("aria-selected") === "true"
+      ) {
+        const sub = $("loginGateSub");
+        if (sub) sub.textContent = loginTabSubText();
+      }
+    }
+
     function setAuthTab(tab) {
       document.querySelectorAll("#authTabs button").forEach((b) => {
         const on = b.dataset.authTab === tab;
@@ -3803,16 +3850,17 @@
       if (tab === "register") {
         if (title) title.textContent = inviteOk ? "欢迎加入" : "创建账号";
         if (sub) {
-          sub.textContent = inviteOk
-            ? "使用下方表单完成注册，即可加入 WeChat-AI。"
-            : "填写邀请码与账号信息，完成后即可管理机器人与人设。";
+          if (inviteOk) {
+            sub.textContent = "使用下方表单完成注册，即可加入 WeChat-AI。";
+          } else {
+            sub.textContent = inviteRequiredForLocal()
+              ? "填写邀请码与账号信息，完成后即可管理机器人与人设。"
+              : "填写账号信息，完成后即可管理机器人与人设。";
+          }
         }
       } else {
         if (title) title.textContent = "管理你的微信机器人";
-        if (sub) {
-          sub.textContent =
-            "登录后添加机器人、批准好友、分配角色。本地注册需邀请码；LINUX DO 可直接登录。";
-        }
+        if (sub) sub.textContent = loginTabSubText();
       }
     }
 
@@ -3928,14 +3976,7 @@
       bindPasswordToggles($("loginGate"));
       await resolveInviteFromUrl();
       try {
-        const cfg = await api("/api/v1/auth/config");
-        if (cfg && cfg.localAuthEnabled === false) {
-          setAuthTab("login");
-          if ($("authTabs")) $("authTabs").style.display = "none";
-          if ($("authLoginPanel")) $("authLoginPanel").style.display = "none";
-          if ($("authRegisterPanel")) $("authRegisterPanel").style.display = "none";
-          setInviteBanner(null);
-        }
+        applyAuthConfig(await api("/api/v1/auth/config"));
       } catch (_) {}
     }
 

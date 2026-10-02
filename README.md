@@ -4,8 +4,8 @@
 
 **自托管微信角色扮演对话服务** · Self-hosted WeChat roleplay chatbot service
 
-直连腾讯 **iLink**，数据存 **远端 Redis**，登录用 **LINUX DO OAuth**。
-Connects directly to Tencent **iLink**, stores data in **remote Redis**, and authenticates via **LINUX DO OAuth**.
+直连腾讯 **iLink**，数据存 **远端 Redis**，默认本地账号登录（LINUX DO OAuth 可选）。
+Connects directly to Tencent **iLink**, stores data in **remote Redis**, and signs users in with **local accounts** by default (LINUX DO OAuth is optional).
 
 [功能 Features](#功能-features) · [架构 Architecture](#架构-architecture) · [快速开始 Quick Start](#快速开始-quick-start) · [文档 Docs](#文档-docs) · [许可证 License](#许可证-license)
 
@@ -19,7 +19,7 @@ Connects directly to Tencent **iLink**, stores data in **remote Redis**, and aut
 
 | 中文 | English |
 |------|---------|
-| LINUX DO OAuth 登录（用户 / 管理员） | LINUX DO OAuth login (user / admin) |
+| 本地账号登录（用户名 + 密码，首个注册用户即管理员），可选 LINUX DO OAuth | Local account login (username + password; first user becomes admin), optional LINUX DO OAuth |
 | 用户中心：扫码添加/删除微信机器人、批准私聊用户、分配人设 | User center: scan-QR add/remove WeChat bots, approve chat peers, assign personas |
 | 用户对话：绑定 LINUX DO 后微信内 `@用户名` 请求对话，对方 `/同意` 后双向中继 | P2P chat: after binding, `@username` in WeChat to request a chat, peer replies `/agree` to relay messages both ways |
 | 管理后台：数据面板、Token 用量、用户与机器人、部署节点、表情包审核 | Admin dashboard: stats, token usage, users & bots, deploy nodes, sticker moderation |
@@ -52,7 +52,10 @@ Browser ──► main domain CF Worker LB ──► Node-1…N (same image, sha
 ```bash
 pnpm install
 cp .env.example .env
-# 必填 Required: REDIS_URL（Upstash 用 rediss://）、LLM_API_KEY（平台）、LINUXDO_* 、LINUXDO_ADMIN_IDS
+# 必填 Required: REDIS_URL（Upstash 用 rediss://）、LLM_API_KEY（平台模型）
+# 登录：默认本地账号，开箱可注册（LOCAL_AUTH_ENABLED=true、INVITE_REQUIRED_FOR_LOCAL=false），
+#      首个注册用户自动成为管理员。可选 LINUXDO_CLIENT_ID / _SECRET / _REDIRECT_URI 启用 LINUX DO OAuth
+# 单联系人限流：PEER_RATE_PER_MINUTE（默认 20/分钟，0 = 不限制）
 # 用户自定义 LLM / 联网搜索：部署 huggingface/wechat-ai-tools，配置 TOOLS_BASE_URL + TOOLS_API_KEY
 
 pnpm db:seed

@@ -1,6 +1,10 @@
 /**
  * Simple sliding-window rate limiter (in-memory, per process).
  *
+ * A non-positive `max` disables limiting: every key is allowed and no history
+ * is recorded. Callers reach this through `PEER_RATE_PER_MINUTE=0`, so `0`
+ * reads as "off" rather than "reject everything".
+ *
  * Keys are attacker-influenced (client IP on the public /cdn/s route, username
  * on login), so the map is bounded. Evicting a bucket is always safe in this
  * direction: the key simply gets a fresh window, it can never turn an allow
@@ -22,9 +26,10 @@ export class RateLimiter {
   /**
    * Runtime settings reload. Existing buckets are kept: raising the cap frees
    * callers immediately, lowering it applies from the next request onward.
+   * A non-positive `max` turns limiting off.
    */
   setLimits(max: number, windowMs = this.windowMs): void {
-    this.max = Math.max(1, max);
+    this.max = max;
     this.windowMs = Math.max(1_000, windowMs);
   }
 
@@ -49,6 +54,7 @@ export class RateLimiter {
 
   /** Returns true if the key is allowed; records a hit when allowed. */
   tryTake(key: string, now = Date.now()): boolean {
+    if (this.max <= 0) return true; // limiting disabled
     const cutoff = now - this.windowMs;
     const existing = this.hits.get(key);
     const prev = existing ? this.prune(existing, cutoff) : [];
@@ -68,6 +74,7 @@ export class RateLimiter {
   }
 
   remaining(key: string, now = Date.now()): number {
+    if (this.max <= 0) return Number.POSITIVE_INFINITY; // limiting disabled
     const cutoff = now - this.windowMs;
     const existing = this.hits.get(key);
     const prev = existing ? this.prune(existing, cutoff) : [];

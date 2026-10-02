@@ -44,4 +44,34 @@ describe("RateLimiter", () => {
     assert.equal(rl.tryTake("gone", 10_000), true);
     assert.equal(rl.remaining("gone", 10_000), 4);
   });
+
+  it("treats max <= 0 as unlimited", () => {
+    const rl = new RateLimiter(0, 60_000);
+    for (let i = 0; i < 5_000; i++) {
+      assert.equal(rl.tryTake("chat", 1000), true);
+    }
+    assert.equal(rl.size, 0, "a disabled limiter records no buckets");
+    assert.equal(
+      rl.remaining("chat", 1000),
+      Number.POSITIVE_INFINITY,
+      "remaining must not read as exhausted while limiting is off",
+    );
+  });
+
+  it("re-enables cleanly after leaving the disabled state", () => {
+    const rl = new RateLimiter(0, 60_000);
+    assert.equal(rl.tryTake("a", 1000), true);
+    rl.setLimits(2, 60_000);
+    assert.equal(rl.tryTake("a", 1000), true);
+    assert.equal(rl.tryTake("a", 1001), true);
+    assert.equal(rl.tryTake("a", 1002), false);
+  });
+
+  it("setLimits(0) disables an active limiter", () => {
+    const rl = new RateLimiter(1, 60_000);
+    assert.equal(rl.tryTake("b", 1000), true);
+    assert.equal(rl.tryTake("b", 1001), false);
+    rl.setLimits(0);
+    assert.equal(rl.tryTake("b", 1002), true);
+  });
 });

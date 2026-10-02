@@ -121,4 +121,9 @@ describe("shipped defaults: other optional features stay off", () => {
   it("unapproved users cannot chat", () => {
     assert.equal(bare().allowUnapproved, false);
   });
+
+  it("caps each peer's messages per minute", () => {
+    // 0 means "no limit"; a fresh checkout must not land there by accident.
+    assert.equal(bare().peerRatePerMinute, 20);
+  });
 });

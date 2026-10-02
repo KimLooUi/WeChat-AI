@@ -38,6 +38,21 @@ export function resolveLogLevel(raw: string | undefined): LogLevel {
     : "info";
 }
 
+/** Default per-peer message cap when PEER_RATE_PER_MINUTE is unset or unusable. */
+const DEFAULT_PEER_RATE_PER_MINUTE = 20;
+
+/**
+ * Per-peer messages per minute. `0` means "no limit"; blank or unparseable
+ * input falls back to the default rather than silently disabling the cap.
+ */
+export function resolvePeerRatePerMinute(raw: string | undefined): number {
+  const v = (raw ?? "").trim();
+  if (!v) return DEFAULT_PEER_RATE_PER_MINUTE;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return DEFAULT_PEER_RATE_PER_MINUTE;
+  return Math.max(0, Math.trunc(n));
+}
+
 export function resolveRepoRoot(start = process.cwd()): string {
   let dir = path.resolve(start);
   for (let i = 0; i < 10; i++) {
@@ -463,7 +478,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       50,
       Number(env.LOG_SLOW_REQUEST_MS ?? "1000") || 1000,
     ),
-    peerRatePerMinute: Number(env.PEER_RATE_PER_MINUTE ?? "20"),
+    peerRatePerMinute: resolvePeerRatePerMinute(env.PEER_RATE_PER_MINUTE),
     splitReply: env.SPLIT_REPLY !== "false",
     maxReplyChunks: Number(env.MAX_REPLY_CHUNKS ?? "5"),
     maxChunkChars: Number(env.MAX_CHUNK_CHARS ?? "72"),

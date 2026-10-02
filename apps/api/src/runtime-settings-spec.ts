@@ -324,9 +324,9 @@ export const SETTING_SPECS: SettingSpec[] = [
     key: "peerRatePerMinute",
     env: "PEER_RATE_PER_MINUTE",
     group: "chat",
-    label: "单联系人每分钟消息上限",
+    label: "单联系人每分钟消息上限（0 = 不限制）",
     type: "int",
-    min: 1,
+    min: 0,
     max: 600,
   },
 
